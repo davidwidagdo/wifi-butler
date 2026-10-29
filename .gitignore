@@ -1,0 +1,5 @@
+config
+*.log
+portal.html
+macos-app/build/
+.DS_Store

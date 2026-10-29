@@ -1,0 +1,30 @@
+# Copy this file to `config` and fill in your real values.
+# `config` is git-ignored. With the Keychain flow below it holds NO secret.
+
+# The portal's address, e.g. 192.168.1.1. Empty = taken from LOGIN_URL.
+PORTAL_HOST=""
+
+# The form's POST target, as an absolute URL. Confirm with ./discover-portal.sh.
+# MikroTik hotspots typically use http://<portal-host>/login.
+LOGIN_URL=""
+
+# Optional. When set, the script only logs in if the portal page at PORTAL_HOST
+# contains this text (case-insensitive) — a safety belt so it never POSTs your
+# credentials on a different network that happens to reuse PORTAL_HOST. Leave
+# empty to require only that PORTAL_HOST is reachable. e.g. "hotspot".
+PORTAL_MARKER=""
+
+USERNAME="<your-username>"
+
+# --- Password (best practice: macOS Keychain) ---
+# Leave PASSWORD empty and run ./keychain-setup.sh to store it in the Keychain.
+# If PASSWORD is non-empty it is used as a fallback (plaintext — not recommended).
+KEYCHAIN_SERVICE="wifi-autologin"
+PASSWORD=""
+
+# Extra form fields the portal expects, one "name=value" per array entry.
+# MikroTik default shown; adjust to whatever ./discover-portal.sh reports.
+EXTRA_FIELDS=( "dst=" "popup=true" )
+
+# Seconds between connectivity checks.
+POLL_INTERVAL=15

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>WiFi Butler</string>
+    <key>CFBundleDisplayName</key>
+    <string>WiFi Butler</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.davidwidagdo.wifiautologin</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleExecutable</key>
+    <string>WifiAutoLogin</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <!-- Custom icon; build.sh generates AppIcon.icns from AppIcon.png if present.
+         Falls back to the generic app icon when absent. -->
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>26.0</string>
+    <!-- Menu-bar agent: no Dock icon. -->
+    <key>LSUIElement</key>
+    <true/>
+    <!-- The portal and Apple's probe are plain HTTP, so arbitrary loads must be
+         allowed. -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
+</dict>
+</plist>
