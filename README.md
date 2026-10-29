@@ -37,9 +37,9 @@ network whose portal you configured.
 flowchart TD
   T[Trigger: poll timer,<br/>network change or wake] --> P{Internet probe<br/>succeeds?}
   P -->|yes| C[Connected: do nothing]
-  P -->|no| G{Captive portal page<br/>answers? follows up to<br/>3 redirect pages}
+  P -->|no| G{Captive portal<br/>page answers?}
   G -->|no| I[Idle: never send credentials]
-  G -->|yes| M{Our portal? marker in<br/>address or page, or a<br/>login form if no marker}
+  G -->|yes| M{Our portal? marker in<br/>the page, or a login<br/>form if no marker}
   M -->|no| I
   M -->|yes| F[Use the page's login form,<br/>or the configured login URL]
   F --> L[POST username and<br/>Keychain password]
@@ -116,8 +116,8 @@ flowchart LR
 
 - **MikroTik CHAP portals.** If `discover-portal.sh` reports a `challenge` or `chap-id` field, the portal hashes the
   password as `md5(chap-id + password + challenge)`, which the login does not support yet.
-- **The macOS captive popup.** macOS closes it by itself once the login succeeds. For the CLI you can turn the popup off
-  (needs sudo, and only once login works):
+- **The macOS captive popup.** macOS closes it by itself once the login succeeds. For the CLI you can turn the
+  popup off (needs sudo, and only once login works):
   `sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.captive.control Active -bool false`.
 
 ## License
