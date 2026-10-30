@@ -5,9 +5,9 @@ status bar. Built with `swiftc` and `hdiutil`: no Xcode project and no third-par
 
 ## Features
 
-- **Live speed meter.** Two stacked lines in the menu bar (↑ upload on top, ↓ download below) that switch units on their own
-  (B/s, KB/s, MB/s, GB/s), with monospaced digits so the width stays steady. A bolt icon shows the state: filled
-  when connected, slashed when logged out or offline, circling arrows while logging in.
+- **Live speed meter.** Two stacked lines in the menu bar (↑ upload on top, ↓ download below) that switch units on
+  their own (B/s, KB/s, MB/s, GB/s), with monospaced digits so the width stays steady. A bolt icon shows the state:
+  filled when connected, slashed when logged out or offline, circling arrows while logging in.
 - **Daily WiFi usage.** Today's download and upload totals in the menu, plus a **Usage History** window with the last
   30 days, 7- and 30-day summaries and today's peak speeds. It reads the interface's own 64-bit byte counters, so the
   totals match what the system reports.
@@ -29,10 +29,10 @@ status bar. Built with `swiftc` and `hdiutil`: no Xcode project and no third-par
 - **Storage.** The password lives in the macOS **Keychain**, the other settings in `UserDefaults`. The log rotates
   itself, so it never grows without bound.
 - **Triggers.** It logs in again on **polling** (portal session timeouts, where the WiFi link never drops), **network
-  reconnect** (`NWPathMonitor`, for sleep and roaming) and **wake from sleep**. After a reconnect it retries every 3 s, up to 4 times, while the portal is still
-  warming up. After each login it probes again to confirm success.
-- **Closes the captive-portal popup.** Once internet is confirmed it closes the macOS Captive Network Assistant, so the
-  "Join network" window no longer needs closing by hand. If login fails the popup stays, as the manual fallback.
+  reconnect** (`NWPathMonitor`, for sleep and roaming) and **wake from sleep**. After a reconnect it retries every
+  3 s, up to 4 times, while the portal is still warming up. After each login it probes again to confirm success.
+- **Closes the captive-portal popup.** Once internet is confirmed it closes the macOS Captive Network Assistant, so
+  the "Join network" window no longer needs closing by hand. If login fails the popup stays, as the manual fallback.
 
 ## Build
 
@@ -59,7 +59,8 @@ This produces `build/WiFi Butler.app` and `build/WiFi-Butler.dmg`.
   Keychain access (choose **Always Allow**), and the **Start at Login** registration can be lost: toggle it again
   from the menu.
 - **Sharing with others.** Ad-hoc signing works on your own Mac. The build targets macOS 26.0 or later on Apple
-  Silicon, required for the Liquid Glass panels in Settings and Usage History. To share it without the Gatekeeper warning, sign and notarize it with an Apple Developer account; for
-  Intel Macs, also build an `x86_64` slice and `lipo` a universal binary.
+  Silicon, required for the Liquid Glass panels in Settings and Usage History. To share it without the Gatekeeper
+  warning, sign and notarize it with an Apple Developer account; for Intel Macs, also build an `x86_64` slice and
+  `lipo` a universal binary.
 - **MikroTik CHAP portals.** If the portal hashes the password with an MD5 challenge (a `challenge` or `chap-id`
   field, see `../discover-portal.sh`), the login needs a small extension; the app currently sends a plain POST.
