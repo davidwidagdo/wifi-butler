@@ -179,6 +179,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.client.inspectCaptivePage { [weak self] ours, page in
                     DispatchQueue.main.async {
                         guard let self = self else { return }
+                        if ours, page?.isLoggedIn == true {
+                            self.menuController.setStatus(.connected, "Connected")
+                            self.quickRetriesLeft = 0
+                            self.dismissCaptivePopup()
+                            self.finishCycle()
+                            return
+                        }
                         guard ours, let page = page else {
                             self.menuController.setStatus(.disconnected, "Idle — no portal on this network")
                             let detail = page.map { "not our portal page (\($0.summary))" }
@@ -201,10 +208,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func performLogin(page: CaptivePage) {
         client.login(page: page) { [weak self] _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                self?.client.checkConnectivity { state in
+                self?.client.confirmLogin { loggedIn in
                     DispatchQueue.main.async {
                         guard let self = self else { return }
-                        if state == .connected {
+                        if loggedIn {
                             self.menuController.setStatus(.connected, "Connected")
                             Log.write("Login OK.")
                             self.dismissCaptivePopup()
@@ -231,7 +238,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // Only called with internet confirmed, when the macOS portal popup is stale.
+    // Only called once the session is confirmed, when the macOS portal popup is stale.
     private func dismissCaptivePopup() {
         let popups = NSRunningApplication.runningApplications(withBundleIdentifier: Self.captivePopupBundleID)
         guard !popups.isEmpty else { return }

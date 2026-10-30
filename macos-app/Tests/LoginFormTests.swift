@@ -51,4 +51,22 @@ func testLoginForm() {
     T.eq(filled["username"] ?? "", "u", "username filled")
     T.eq(filled["password"] ?? "", "p#1", "password filled")
     T.eq(filled["popup"] ?? "", "true", "hidden field kept")
+
+    // MikroTik status.html: its status button assigns document.location.
+    let status = """
+    <meta http-equiv="refresh" content="60">
+    <form action="http://portal.example/logout" name="logout"><input type="submit" value="Log out"></form>
+    <button onclick="document.location='http://portal.example/user?subs='; return false;">status</button>
+    """
+    T.expect(LoginFormParser.isSessionPage(html: status), "status page is a live session")
+    T.expect(LoginFormParser.redirectURL(html: status, base: base) == nil, "status page is not followed")
+    T.expect(!LoginFormParser.isSessionPage(html: login), "login page is not a session")
+
+    let named = URL(string: "http://portal.example/login?dst=x")!
+    T.eq(PortalRoute.url(named, portalHost: "PORTAL.example", gateway: "10.0.0.1").absoluteString,
+         "http://10.0.0.1/login?dst=x", "portal name goes to the gateway")
+    T.eq(PortalRoute.url(named, portalHost: "other.example", gateway: "10.0.0.1").absoluteString,
+         named.absoluteString, "other hosts stay as they are")
+    T.eq(PortalRoute.url(named, portalHost: "portal.example", gateway: nil).absoluteString,
+         named.absoluteString, "no gateway, no rewrite")
 }

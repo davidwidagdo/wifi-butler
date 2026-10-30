@@ -116,8 +116,8 @@ flowchart LR
 
 - **MikroTik CHAP portals.** If `discover-portal.sh` reports a `challenge` or `chap-id` field, the portal hashes the
   password as `md5(chap-id + password + challenge)`, which the login does not support yet.
-- **The macOS captive popup.** The app closes it once internet is confirmed; if login fails it stays open as the
-  manual fallback. For the CLI you can turn the popup off (needs sudo, and only once login works):
+- **The macOS captive popup.** The app closes it once the portal session is confirmed; if login fails it stays open
+  as the manual fallback. For the CLI you can turn the popup off (needs sudo, and only once login works):
   `sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.captive.control Active -bool false`.
 
 ## License
