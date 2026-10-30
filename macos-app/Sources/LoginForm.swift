@@ -25,6 +25,19 @@ struct LoginForm {
     }
 }
 
+// A VPN can own system DNS and hide the portal's name; the Wi-Fi gateway stays on-link.
+enum PortalRoute {
+    static func url(_ url: URL, portalHost: String?, gateway: String?) -> URL {
+        guard let gateway = gateway, let portalHost = portalHost,
+              url.host?.caseInsensitiveCompare(portalHost) == .orderedSame,
+              let target = URL(string: "http://\(gateway)"),
+              var parts = URLComponents(url: url, resolvingAgainstBaseURL: true) else { return url }
+        parts.host = target.host
+        parts.port = target.port
+        return parts.url ?? url
+    }
+}
+
 // Minimal, dependency-free HTML form parser for standard captive portals.
 // Not a full HTML parser: it handles the plain `<form>`/`<input>` markup these
 // portals use. JS-rendered or CHAP-challenge portals won't be discovered and
@@ -42,9 +55,14 @@ enum LoginFormParser {
         return nil
     }
 
+    // A logged-in client gets the status page: no password form, a logout link.
+    static func isSessionPage(html: String) -> Bool {
+        parse(html: html) == nil && html.range(of: "/logout", options: .caseInsensitive) != nil
+    }
+
     // A page with no login form may be a redirect page (meta refresh or JS location).
     static func redirectURL(html: String, base: URL?) -> URL? {
-        guard parse(html: html) == nil,
+        guard parse(html: html) == nil, !isSessionPage(html: html),
               let raw = metaRefreshTarget(html) ?? scriptLocationTarget(html),
               !raw.contains("$(") else { return nil }
         return URL(string: raw, relativeTo: base)?.absoluteURL

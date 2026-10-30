@@ -30,8 +30,12 @@ status bar. Built with `swiftc` and `hdiutil`: no Xcode project and no third-par
   itself, so it never grows without bound.
 - **Triggers.** It logs in again on **polling** (portal session timeouts, where the WiFi link never drops), **network
   reconnect** (`NWPathMonitor`, for sleep and roaming) and **wake from sleep**. After a reconnect it retries every
-  3 s, up to 4 times, while the portal is still warming up. After each login it probes again to confirm success.
-- **Closes the captive-portal popup.** Once internet is confirmed it closes the macOS Captive Network Assistant, so
+  3 s, up to 4 times, while the portal is still warming up. After each login it asks the portal, then the internet
+  probe, to confirm success.
+- **Works behind a VPN.** With a Portal marker set, it talks to the portal through the Wi-Fi gateway address, so a
+  VPN that takes over DNS cannot hide the portal's name. Requests to that name go to the gateway with the name as
+  `Host`.
+- **Closes the captive-portal popup.** Once the session is confirmed it closes the macOS Captive Network Assistant, so
   the "Join network" window no longer needs closing by hand. If login fails the popup stays, as the manual fallback.
 
 ## Build
