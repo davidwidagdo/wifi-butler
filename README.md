@@ -19,12 +19,12 @@ network whose portal you configured.
 
 ## Features
 
-- **Automatic sign-in.** Polling, network changes and wake from sleep all trigger a check. After signing in it
-  checks internet access to confirm the login worked.
+- **Automatic sign-in.** Polling, network changes and wake from sleep all trigger a check. After a reconnect it
+  retries every 3 s, up to 4 times, while the portal warms up, and after signing in it confirms internet access.
 - **Safe by design.** Credentials are posted only when your portal answers. On any other network, or while offline,
   it stays idle.
-- **Finds the form itself.** It reads the portal's login form, following redirects, so most portals need only a
-  username and password.
+- **Finds the form itself.** It reads the portal's login form, following up to three redirect pages (meta refresh or
+  JavaScript), so most portals need only a username and password.
 - **Menu-bar meters.** Live upload and download speed, today's usage, a 30-day usage history, and optional CPU and
   memory.
 - **Keychain.** The password lives in the macOS Keychain, never in a file.
@@ -37,15 +37,15 @@ network whose portal you configured.
 flowchart TD
   T[Trigger: poll timer,<br/>network change or wake] --> P{Internet probe<br/>succeeds?}
   P -->|yes| C[Connected: do nothing]
-  P -->|no| G{Captive portal<br/>page answers?}
+  P -->|no| G{Captive portal page<br/>answers? follows up to<br/>3 redirect pages}
   G -->|no| I[Idle: never send credentials]
-  G -->|yes| M{Our portal? marker in<br/>the page, or a login<br/>form if no marker}
+  G -->|yes| M{Our portal? marker in<br/>address or page, or a<br/>login form if no marker}
   M -->|no| I
   M -->|yes| F[Use the page's login form,<br/>or the configured login URL]
   F --> L[POST username and<br/>Keychain password]
   L --> R{Probe again}
-  R -->|online| OK[Logged in]
-  R -->|still offline| X[Log the failure,<br/>retry on the next trigger]
+  R -->|online| OK[Logged in, close the<br/>captive popup]
+  R -->|still offline| X[Log the failure, retry<br/>soon after a reconnect,<br/>else on the next trigger]
 ```
 
 The portal-presence check is the safety rule. The CLI runs the same check against the configured portal host instead
@@ -116,8 +116,8 @@ flowchart LR
 
 - **MikroTik CHAP portals.** If `discover-portal.sh` reports a `challenge` or `chap-id` field, the portal hashes the
   password as `md5(chap-id + password + challenge)`, which the login does not support yet.
-- **The macOS captive popup.** macOS closes it by itself once the login succeeds. For the CLI you can turn the
-  popup off (needs sudo, and only once login works):
+- **The macOS captive popup.** The app closes it once internet is confirmed; if login fails it stays open as the
+  manual fallback. For the CLI you can turn the popup off (needs sudo, and only once login works):
   `sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.captive.control Active -bool false`.
 
 ## License
