@@ -5,17 +5,29 @@ enum ConnState {
     case captured    // behind the portal / offline
 }
 
-// A captive-portal page fetched once, reused for both the "is this our portal?"
-// decision and the login submit (avoids a second round-trip).
+// Fetched once and reused for the gating decision and the login submit.
 struct CaptivePage {
     let url: URL?
     let html: String
+    var hops = 0
+
+    // Logged on rejection: path and shape only, never the page body or host.
+    var summary: String {
+        let path = url.map { $0.path.isEmpty ? "/" : $0.path } ?? "?"
+        let form = LoginFormParser.parse(html: html) == nil ? "no form" : "form"
+        return "\(path), \(html.utf8.count) bytes, \(form), \(hops) redirect(s) followed"
+    }
 }
 
 // Connectivity detection + captive-portal login.
 final class PortalClient {
-    private let probeURL = URL(string: "http://captive.apple.com/hotspot-detect.html")!
+    private static let maxRedirectHops = 3
+    private let probeURL: URL
     private let successMarker = "<TITLE>Success</TITLE>"
+
+    init(probeURL: URL = URL(string: "http://captive.apple.com/hotspot-detect.html")!) {
+        self.probeURL = probeURL
+    }
 
     private lazy var session: URLSession = {
         let cfg = URLSessionConfiguration.ephemeral
@@ -39,44 +51,23 @@ final class PortalClient {
         task.resume()
     }
 
-    // Confirms the configured portal is actually on this network before we send
-    // credentials. This keeps the app from POSTing on no-login/offline networks
-    // or leaking credentials to a foreign captive portal. If a marker is set,
-    // the portal page must also contain it.
-    // Host-independent: inspects the captive page macOS was redirected to, so a
-    // misconfigured Host can't stop login. With a marker set, the page must
-    // contain it (recommended, to avoid submitting credentials on other captive
-    // networks); without one, any page that has a fillable login form counts.
-    // Fetches the captive page once, reports whether it's our portal, and hands
-    // back the page so login() can reuse it without a second round-trip — faster,
-    // so macOS closes its own captive popup sooner.
+    // Gate before any POST: the page must hold a login form, or the marker when set.
     func inspectCaptivePage(completion: @escaping (_ isOurPortal: Bool, _ page: CaptivePage?) -> Void) {
-        fetchCaptivePage { url, html in
-            guard let html = html else { completion(false, nil); return }
-            let ours = Self.isOurPortal(html: html, marker: Settings.shared.portalMarker)
-            completion(ours, CaptivePage(url: url, html: html))
+        fetchCaptivePage { page in
+            guard let page = page else { completion(false, nil); return }
+            completion(Self.isOurPortal(page: page, marker: Settings.shared.portalMarker), page)
         }
     }
 
-    static func isOurPortal(html: String?, marker: String) -> Bool {
-        guard let html = html else { return false }
+    // The marker may sit in the page address (portal domain) or its text.
+    static func isOurPortal(page: CaptivePage, marker: String) -> Bool {
         let trimmed = marker.trimmingCharacters(in: .whitespaces)
-        if !trimmed.isEmpty { return html.localizedCaseInsensitiveContains(trimmed) }
-        return LoginFormParser.parse(html: html) != nil
+        guard !trimmed.isEmpty else { return LoginFormParser.parse(html: page.html) != nil }
+        let address = page.url?.absoluteString ?? ""
+        return address.localizedCaseInsensitiveContains(trimmed) || page.html.localizedCaseInsensitiveContains(trimmed)
     }
 
-    // Logs in by auto-discovering the portal's login form from the intercepted
-    // page. Falls back to the manually configured endpoint if no form is found
-    // (e.g. a JS-rendered portal), so behaviour is never worse than before.
-    // Logs in using an already-fetched captive page. Falls back to the manually
-    // configured endpoint if the page has no parseable login form.
     func login(page: CaptivePage, completion: @escaping (Bool) -> Void) {
-        // Reading the password hits the Keychain, which blocks the calling thread
-        // for as long as macOS keeps an authorization prompt on screen. This is
-        // called from the main thread during auto-login, so do the read on a
-        // background queue — otherwise an unanswered prompt freezes the whole app,
-        // menu bar and monitors included. The completion already hops back to main
-        // in AppDelegate.
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else {
                 completion(false)
@@ -94,14 +85,26 @@ final class PortalClient {
         }
     }
 
-    // GETs the probe URL; when captured, the portal serves (or redirects to) its
-    // login page, so the response body is the login HTML and response.url is a
-    // good base for resolving a relative form action.
-    private func fetchCaptivePage(completion: @escaping (URL?, String?) -> Void) {
-        var request = URLRequest(url: probeURL)
+    // Portals answer the probe with a login page or a meta/JS redirect page; follow those.
+    private func fetchCaptivePage(completion: @escaping (CaptivePage?) -> Void) {
+        fetchPage(probeURL, hops: 0, completion: completion)
+    }
+
+    private func fetchPage(_ url: URL, hops: Int, completion: @escaping (CaptivePage?) -> Void) {
+        var request = URLRequest(url: url)
         request.timeoutInterval = 6
-        let task = session.dataTask(with: request) { data, response, _ in
-            completion(response?.url, data.flatMap { String(data: $0, encoding: .utf8) })
+        let task = session.dataTask(with: request) { [weak self] data, response, _ in
+            guard let html = data.flatMap({ String(data: $0, encoding: .utf8) }) else {
+                completion(nil)
+                return
+            }
+            let page = CaptivePage(url: response?.url ?? url, html: html, hops: hops)
+            guard let self = self, hops < Self.maxRedirectHops,
+                  let next = LoginFormParser.redirectURL(html: html, base: page.url) else {
+                completion(page)
+                return
+            }
+            self.fetchPage(next, hops: hops + 1, completion: completion)
         }
         task.resume()
     }

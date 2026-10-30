@@ -42,6 +42,32 @@ enum LoginFormParser {
         return nil
     }
 
+    // A page with no login form may be a redirect page (meta refresh or JS location).
+    static func redirectURL(html: String, base: URL?) -> URL? {
+        guard parse(html: html) == nil,
+              let raw = metaRefreshTarget(html) ?? scriptLocationTarget(html),
+              !raw.contains("$(") else { return nil }
+        return URL(string: raw, relativeTo: base)?.absoluteURL
+    }
+
+    private static func metaRefreshTarget(_ html: String) -> String? {
+        for tag in regexMatches("(?is)<meta\\b[^>]*>", html) {
+            guard attribute("http-equiv", in: tag)?.lowercased() == "refresh",
+                  let content = attribute("content", in: tag),
+                  let url = firstCapture("(?i)url\\s*=\\s*['\"]?([^'\"]+)", content) else { continue }
+            return url.trimmingCharacters(in: .whitespaces)
+        }
+        return nil
+    }
+
+    private static func scriptLocationTarget(_ html: String) -> String? {
+        let quoted = "\\s*(?:unescape\\(\\s*)?['\"]([^'\"]+)['\"]"
+        guard let raw = firstCapture("(?i)\\blocation(?:\\.href)?\\s*=" + quoted, html)
+            ?? firstCapture("(?i)\\blocation\\.replace\\(" + quoted, html) else { return nil }
+        // MikroTik writes unescape('http%3A%2F%2F...'), a fully percent-encoded URL.
+        return raw.contains("://") ? raw : (raw.removingPercentEncoding ?? raw)
+    }
+
     private static func parseInputs(_ formHTML: String) -> [FormField] {
         var fields: [FormField] = []
         for tag in regexMatches("(?is)<input\\b[^>]*>", formHTML) {

@@ -11,8 +11,6 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTe
     private let passwordPlainField = NSTextField()
     private let revealButton = NSButton()
     private var passwordRevealed = false
-    // Set as soon as the user types in either password field. Gates the Keychain
-    // write in save() — see the comment there.
     private var passwordEdited = false
     private let extraField = NSTextField()
     private let markerField = NSTextField()
@@ -101,8 +99,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTe
         sizeWindowToTallestTab(tabView)
     }
 
-    // Measure every tab, not just the selected one: NSTabView lays out only the
-    // visible item, so sizing to it would clip the taller tabs.
+    // NSTabView lays out only the selected tab, so measure every tab or taller ones clip.
     private func sizeWindowToTallestTab(_ tabView: NSTabView) {
         guard let content = window?.contentView else { return }
         let selected = tabView.selectedTabViewItem
@@ -118,8 +115,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTe
         window?.setContentSize(NSSize(width: content.frame.width, height: tallest))
     }
 
-    // Expanding the advanced section makes the Login tab taller than the others,
-    // so grow past the tallest-tab floor rather than clipping it.
+    // The advanced section can outgrow the tallest-tab floor; grow instead of clipping it.
     private func fitWindowToCurrentContent() {
         guard let content = window?.contentView else { return }
         content.layoutSubtreeIfNeeded()
@@ -333,10 +329,6 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTe
         passwordRevealed ? passwordPlainField.stringValue : passwordField.stringValue
     }
 
-    // Fetches the stored password off the main thread. A Keychain read blocks its
-    // thread for as long as macOS shows an authorization prompt — doing it inline
-    // from present() froze the entire app, menu bar and monitors included, until
-    // the prompt was answered.
     private func loadPasswordAsync() {
         passwordEdited = false
         passwordField.stringValue = ""
@@ -348,8 +340,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTe
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.passwordField.placeholderString = nil
-                // The user may have started typing while the Keychain was busy;
-                // never overwrite what they entered.
+                // The user may have typed while the Keychain was busy; never overwrite that.
                 guard !self.passwordEdited else { return }
                 if self.passwordRevealed {
                     self.passwordPlainField.stringValue = stored
@@ -408,11 +399,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTe
         let s = Settings.shared
         s.loginURL = loginURLField.stringValue.trimmingCharacters(in: .whitespaces)
         s.username = usernameField.stringValue.trimmingCharacters(in: .whitespaces)
-        // Only touch the Keychain when the password was actually edited. This is
-        // what makes the asynchronous load safe: a field that is empty merely
-        // because the Keychain hasn't answered yet can never overwrite the stored
-        // password. The write stays synchronous so onSave() below — which can kick
-        // off a login — always sees the new value.
+        // Write only an edited password (empty may mean mid-load), synchronously for onSave.
         if passwordEdited {
             s.password = enteredPassword
         }

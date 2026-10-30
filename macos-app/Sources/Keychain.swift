@@ -22,6 +22,7 @@ enum Keychain {
         SecItemAdd(add as CFDictionary, nil)
     }
 
+    // Blocks while macOS shows an authorization prompt; never call it on the main thread.
     static func password() -> String {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

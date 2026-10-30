@@ -12,6 +12,7 @@ swiftc -o "$OUT" \
   Sources/ProcessMath.swift \
   Sources/DiskMath.swift \
   Sources/SystemFormat.swift \
+  Sources/LoginForm.swift \
   Tests/TestSupport.swift \
   Tests/ByteFormatterTests.swift \
   Tests/SpeedMathTests.swift \
@@ -20,5 +21,6 @@ swiftc -o "$OUT" \
   Tests/MemoryMathTests.swift \
   Tests/ProcessMathTests.swift \
   Tests/SystemFormatTests.swift \
+  Tests/LoginFormTests.swift \
   Tests/main.swift
 "$OUT"
