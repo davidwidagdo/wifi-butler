@@ -18,6 +18,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitorQueue = DispatchQueue(label: "com.davidwidagdo.wifiautologin.path")
     private var lastEventCheck = Date.distantPast
 
+    // Portals often answer the first probes with a bare redirect or no reply; retry soon.
+    private static let quickRetryDelay: TimeInterval = 3
+    private static let quickRetryLimit = 4
+    private var quickRetriesLeft = 0
+    private static let captivePopupBundleID = "com.apple.CaptiveNetworkAssistant"
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMainMenu()
         menuController.delegate = self
@@ -89,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let now = Date()
         guard now.timeIntervalSince(lastEventCheck) > 2 else { return }
         lastEventCheck = now
+        quickRetriesLeft = Self.quickRetryLimit
         Log.write("Trigger (\(reason)) — checking session.")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             self?.checkAndLogin()
@@ -164,6 +171,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self = self else { return }
                 if state == .connected {
                     self.menuController.setStatus(.connected, "Connected")
+                    self.quickRetriesLeft = 0
+                    self.dismissCaptivePopup()
                     self.finishCycle()
                     return
                 }
@@ -172,12 +181,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         guard let self = self else { return }
                         guard ours, let page = page else {
                             self.menuController.setStatus(.disconnected, "Idle — no portal on this network")
-                            Log.write(manual
-                                ? "Manual login: portal not present — nothing to do."
-                                : "No internet and portal not present — skipping (this network doesn't use it).")
+                            let detail = page.map { "not our portal page (\($0.summary))" }
+                                ?? "no captive page (offline or still joining)"
+                            Log.write(manual ? "Manual login: \(detail) — nothing to do." : "No internet, \(detail) — skipping.")
                             self.finishCycle()
+                            self.scheduleQuickRetry()
                             return
                         }
+                        self.quickRetriesLeft = 0
                         self.menuController.setStatus(.working, "Logging in…")
                         Log.write(manual ? "Manual login — submitting." : "Captive portal detected — logging in.")
                         self.performLogin(page: page)
@@ -196,6 +207,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         if state == .connected {
                             self.menuController.setStatus(.connected, "Connected")
                             Log.write("Login OK.")
+                            self.dismissCaptivePopup()
                         } else {
                             self.menuController.setStatus(.disconnected, "Login failed — check Settings")
                             Log.write("Login FAILED — check credentials / Login URL / Extra fields.")
@@ -209,6 +221,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func finishCycle() {
         isBusy = false
+    }
+
+    private func scheduleQuickRetry() {
+        guard quickRetriesLeft > 0 else { return }
+        quickRetriesLeft -= 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.quickRetryDelay) { [weak self] in
+            self?.checkAndLogin()
+        }
+    }
+
+    // Only called with internet confirmed, when the macOS portal popup is stale.
+    private func dismissCaptivePopup() {
+        let popups = NSRunningApplication.runningApplications(withBundleIdentifier: Self.captivePopupBundleID)
+        guard !popups.isEmpty else { return }
+        popups.forEach { if !$0.terminate() { $0.forceTerminate() } }
+        Log.write("Closed the macOS captive-portal popup.")
     }
 
     // MARK: - Login Items
